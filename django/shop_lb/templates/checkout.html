@@ -1,0 +1,32 @@
+<form action="{% url 'send_excel' %}" method="POST" id="order-form">
+    {% csrf_token %}
+
+    <p><input type="checkbox" id="check1"> Я согласен на покупку</p>
+    <input type="text" id="address" name="address" placeholder="Адрес доставки" style="display:none; margin-bottom:10px;">
+
+    <p><input type="checkbox" id="check2" name="need_receipt"> Прислать чек на почту</p>
+    <input type="email" id="email" name="email" placeholder="Email" style="display:none; margin-bottom:10px;">
+
+    <br>
+    <button id="btn" type="submit" disabled>Оформить заказ</button>
+</form>
+
+<script>
+    const c1 = document.getElementById('check1'),
+          c2 = document.getElementById('check2'),
+          ad = document.getElementById('address'),
+          em = document.getElementById('email'),
+          bt = document.getElementById('btn');
+
+    const toggle = () => {
+        ad.style.display = c1.checked ? 'block' : 'none';
+        em.style.display = c2.checked ? 'block' : 'none';
+
+        const addrOk = c1.checked && ad.value.trim() !== "";
+        const mailOk = !c2.checked || (c2.checked && em.value.trim() !== "");
+
+        bt.disabled = !(addrOk && mailOk);
+    };
+
+    c1.onchange = c2.onchange = ad.oninput = em.oninput = toggle;
+</script>

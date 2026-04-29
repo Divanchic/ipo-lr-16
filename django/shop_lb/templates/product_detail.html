@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ product.name }}</title>
+</head>
+<body>
+    <a href="{% url 'product_list' %}">← Назад в каталог</a>
+    <hr>
+    <h1>{{ product.name }}</h1>
+    <img src="{{ product.image.url }}" alt="{{ product.name }}" style="max-width: 400px;">
+    <p><b>Описание:</b> {{ product.description }}</p>
+    <p><b>Производитель:</b> {{ product.manufacturer.name }} ({{ product.manufacturer.country }})</p>
+    <p><b>Категория:</b> {{ product.category.name }}</p>
+    <h2>Цена: {{ product.price }} руб.</h2>
+
+    {% if user.is_authenticated %}
+        {% if product.stock_quantity > 0 %}
+            <form action="{% url 'cart_add' product.id %}" method="post">
+                {% csrf_token %}
+                <button type="submit">Добавить в корзину</button>
+            </form>
+        {% else %}
+            <p style="color: red;">Нет в наличии</p>
+        {% endif %}
+    {% else %}
+        <p><a href="/admin/login/">Войдите</a>, чтобы купить товар.</p>
+    {% endif %}
+</body>
+</html>
