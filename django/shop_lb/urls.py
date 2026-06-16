@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from . import views
+from .views import api_register, api_login, api_logout, login_view, register_view, api_me, profile_view, settings_view, api_save_settings
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
@@ -43,8 +44,16 @@ urlpatterns = [
     path('checkout/', views.checkout, name='checkout'),
     path('send-excel/', views.send_excel, name='send_excel'),
     path('api/', include(router.urls)),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('api/auth/register/', api_register, name='api_register'),
+    path('api/auth/login/', api_login, name='api_login'),
+    path('api/auth/logout/', api_logout, name='api_logout'),
+    path('logout/', views.api_logout, name='api_logout'),
+    path('login/', login_view, name='login'),
+    path('register/', register_view, name='register'),
+    path('api/me/', api_me, name='api_me'),
+    path('profile/', profile_view, name='profile'),
+    path('settings/', settings_view, name='settings'),
+    path('api/account/settings/', api_save_settings, name='api_save_settings'),
 ]
 
 if settings.DEBUG:

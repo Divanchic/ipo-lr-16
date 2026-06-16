@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Хенд-мейд | Личный кабинет{% endblock %}
+
+{% block content %}
+{% if not user.is_authenticated %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-6 col-12 text-center">
+        <div class="card shadow-sm p-5 bg-white rounded">
+            <h2 class="text-danger mb-3">Доступ ограничен</h2>
+            <p class="text-muted mb-4">Чтобы войти в личный кабинет, необходимо авторизоваться в системе.</p>
+            <a href="{% url 'login' %}" class="btn btn-primary px-5 py-2">Войти в аккаунт</a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row g-4">
+    <div class="col-lg-4 col-12">
+        <div class="card shadow-sm p-4 bg-white rounded h-100">
+            <h3 class="mb-4">Профиль</h3>
+            <form id="profile-form">
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Логин (изменить нельзя)</label>
+                    <input type="text" class="form-control bg-light" value="{{ user.username }}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Роль в системе</label>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Роль в системе</label>
+                        <div>
+                            {% if user.profile.role == 'ADMIN' %}
+                                <span class="badge bg-danger fs-6 px-3 py-2">Администратор</span>
+                            {% elif user.profile.role == 'MANAGER' %}
+                                <span class="badge bg-warning text-dark fs-6 px-3 py-2">Менеджер</span>
+                            {% else %}
+                                <span class="badge bg-primary fs-6 px-3 py-2">Покупатель</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Полное имя (ФИО)</label>
+                    <input type="text" id="full_name" class="form-control" value="{{ user.profile.full_name|default:'' }}" placeholder="ФИО не указано">
+                </div>
+                <button type="submit" class="btn btn-success w-100 py-2">Сохранить изменения</button>
+            </form>
+            <div id="status-message" class="text-center small mt-3" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="col-lg-8 col-12">
+        <div class="card shadow-sm p-4 bg-white rounded h-100">
+            <h3 class="mb-4">Мои заказы</h3>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Номер</th>
+                            <th>Дата</th>
+                            <th>Статус</th>
+                            <th>Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>#1024</strong></td>
+                            <td>08.06.2026</td>
+                            <td><span class="badge bg-warning text-dark">В обработке</span></td>
+                            <td><button class="btn btn-sm btn-outline-dark">Подробнее</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>#1012</strong></td>
+                            <td>24.05.2026</td>
+                            <td><span class="badge bg-success">Доставлен</span></td>
+                            <td><button class="btn btn-sm btn-outline-dark">Подробнее</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if user.is_authenticated %}
+<script>
+    document.getElementById('profile-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fullNameVal = document.getElementById('full_name').value;
+        const msgDiv = document.getElementById('status-message');
+
+        fetch('/api/me/', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')
+            },
+            body: JSON.stringify({ full_name: fullNameVal })
+        })
+        .then(res => {
+            if (res.ok) {
+                msgDiv.className = 'text-success small text-center mt-3';
+                msgDiv.textContent = 'Данные успешно обновлены!';
+                msgDiv.style.display = 'block';
+            } else {
+                throw new Error();
+            }
+        })
+        .catch(() => {
+            msgDiv.className = 'text-danger small text-center mt-3';
+            msgDiv.textContent = 'Ошибка при сохранении данных.';
+            msgDiv.style.display = 'block';
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

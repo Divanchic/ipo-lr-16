@@ -1,44 +1,142 @@
 {% extends 'base.html' %}
-{% load static %}
+
+{% block title %}Хенд-мейд | Каталог{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Каталог</h1>
-    <a href="{% url 'home' %}" class="btn btn-outline-secondary">← Назад на Главную</a>
-</div>
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Каталог</h1>
+            <a href="/" class="btn btn-outline-secondary">← Назад на Главную</a>
+        </div>
 
-<!-- Форма поиска через Bootstrap -->
-<form method="get" class="mb-4">
-    <div class="input-group">
-        <input type="text" name="search" class="form-control" placeholder="Поиск по названию или описанию" value="{{ request.GET.search }}">
-        <button class="btn btn-primary" type="submit">Найти</button>
-    </div>
-</form>
+        <div class="mb-4">
+            <div class="input-group">
+                <input type="text" id="search-input" class="form-control" placeholder="Поиск по названию или описанию товаров...">
+                <button class="btn btn-primary" type="button" id="search-btn">Найти</button>
+            </div>
+        </div>
 
-<!-- Сетка товаров Bootstrap (row) -->
-<div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
-    {% for product in products %}
-    <div class="col">
-        <div class="card h-100 shadow-sm">
-            {% if product.image %}
-                <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
-            {% else %}
-                <img src="{% static 'images/no-image.png' %}" class="card-img-top" alt="Нет фото">
-            {% endif %}
-            
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">{{ product.name }}</h5>
-                <p class="card-text text-muted small">{{ product.description|truncatechars:50 }}</p>
-                <p class="fw-bold mt-auto mb-1">Цена: {{ product.price }} руб.</p>
-                <p class="small text-secondary">На складе: {{ product.stock_quantity }} шт.</p>
-                <a href="{% url 'product_detail' product.pk %}" class="btn btn-dark w-100 mt-2">Подробнее</a>
+        <div id="products-container" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            <div class="col-12 w-100 text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
             </div>
         </div>
     </div>
-    {% empty %}
-    <div class="col-12">
-        <p class="alert alert-warning">Товары не найдены.</p>
-    </div>
-    {% endfor %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const productsContainer = document.getElementById('products-container');
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const categoryId = urlParams.get('category');
+        
+        let allProducts = [];
+
+        function renderProducts(productsList) {
+            productsContainer.innerHTML = '';
+
+            if (productsList.length === 0) {
+                productsContainer.innerHTML = '<div class="col-12 w-100 text-center"><p class="text-muted py-4">Товаров не найдено</p></div>';
+                return;
+            }
+
+            productsList.forEach(product => {
+                const col = document.createElement('div');
+                col.className = 'col';
+                col.innerHTML = `
+                    <div class="card h-100 shadow-sm">
+                        <img src="${product.image || '/static/images/no-image.png'}" class="card-img-top" alt="${product.name}" style="height: 200px; object-fit: cover;">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">${product.name}</h5>
+                            <p class="card-text text-muted small">${product.description ? product.description.substring(0, 60) + '...' : ''}</p>
+                            <p class="fw-bold mt-auto mb-1">Цена: ${product.price} руб.</p>
+                            <p class="small text-secondary mb-3">На складе: ${product.stock_quantity} шт.</p>
+                            <div class="mt-auto d-flex gap-2">
+                                <a href="/catalog/${product.id}/" class="btn btn-outline-dark w-50">Детали</a>
+                                <button class="btn btn-dark w-50 add-to-cart-btn" data-product-id="${product.id}">В корзину</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const addToCartBtn = col.querySelector('.add-to-cart-btn');
+                addToCartBtn.addEventListener('click', function() {
+                    const productId = this.dataset.productId;
+                    fetch(`/cart/add/${productId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            this.className = 'btn btn-success w-50';
+                            this.textContent = 'Добавлено!';
+                            setTimeout(() => {
+                                this.className = 'btn btn-dark w-50';
+                                this.textContent = 'В корзину';
+                            }, 2000);
+                        }
+                    });
+                });
+
+                productsContainer.appendChild(col);
+            });
+        }
+
+        function filterAndRender() {
+            const query = searchInput.value.toLowerCase().trim();
+            
+            let result = allProducts;
+
+            if (categoryId) {
+                result = result.filter(p => {
+                    if (!p.category) return false;
+                    if (typeof p.category === 'object') {
+                        return p.category.id == categoryId;
+                    }
+                    return p.category == categoryId;
+                });
+            }
+
+            if (query) {
+                result = result.filter(p => {
+                    const nameMatch = p.name ? p.name.toLowerCase().includes(query) : false;
+                    const descMatch = p.description ? p.description.toLowerCase().includes(query) : false;
+                    return nameMatch || descMatch;
+                });
+            }
+
+            renderProducts(result);
+        }
+
+        function loadProducts() {
+            fetch('/api/products/')
+                .then(response => {
+                    if (!response.ok) throw new Error();
+                    return response.json();
+                })
+                .then(products => {
+                    allProducts = products;
+                    filterAndRender();
+                })
+                .catch(() => {
+                    productsContainer.innerHTML = '<div class="col-12"><p class="text-danger">Ошибка загрузки товаров.</p></div>';
+                });
+        }
+
+        searchInput.addEventListener('input', filterAndRender);
+        searchBtn.addEventListener('click', filterAndRender);
+
+        loadProducts();
+    });
+</script>
 {% endblock %}

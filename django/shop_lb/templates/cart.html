@@ -1,47 +1,67 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Моя корзина</title>
-</head>
-<body>
-    <h1>Ваша корзина</h1>
-    <table border="1" cellpadding="10">
-        <thead>
-            <tr>
-                <th>Товар</th>
-                <th>Количество</th>
-                <th>Цена за шт.</th>
-                <th>Итого</th>
-                <th>Действие</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in bucket.bucket_element_set.all %}
-            <tr>
-                <td>{{ item.product.name }}</td>
-                <td>
-                    <form action="{% url 'cart_update' item.id %}" method="post">
-                        {% csrf_token %}
-                        <input type="number" name="number" value="{{ item.number }}" min="1" max="{{ item.product.stock_quantity }}">
-                        <button type="submit">Обновить</button>
-                    </form>
-                </td>
-                <td>{{ item.product.price }}</td>
-                <td>{{ item.cost }}</td>
-                <td>
-                    <a href="{% url 'cart_remove' item.id %}" style="color: red;">Удалить</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5">Корзина пуста</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+{% extends 'base.html' %}
 
-    <h3>Общая стоимость: {{ basket.total_cost }} руб.</h3>
-    <a href="{% url 'checkout' %}">Перейти к оформлению заказа</a>
-    <br><a href="{% url 'product_list' %}">Продолжить покупки</a>
-</body>
-</html>
+{% block title %}Хенд-мейд | Корзина{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1>Ваша корзина</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-9 col-12">
+        <div class="table-responsive bg-white p-3 rounded shadow-sm">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Товар</th>
+                        <th>Количество</th>
+                        <th>Цена</th>
+                        <th>Итого</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in bucket.bucket_element_set.all %}
+                    <tr>
+                        <td><strong>{{ item.product.name }}</strong></td>
+                        <td>
+                            <form action="{% url 'cart_update' item.id %}" method="post" class="d-inline-block" style="width: 100px;">
+                                {% csrf_token %}
+                                <input type="number" 
+                                       name="number" 
+                                       value="{{ item.number }}" 
+                                       min="1" 
+                                       max="{{ item.product.stock_quantity }}" 
+                                       class="form-control form-control-sm" 
+                                       onchange="this.form.submit()">
+                            </form>
+                        </td>
+                        <td>{{ item.product.price }} руб.</td>
+                        <td>{{ item.cost }} руб.</td>
+                        <td>
+                            <a href="{% url 'cart_remove' item.id %}" class="btn btn-sm btn-outline-danger">Удалить</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Корзина пуста</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-3 col-12 mt-4 mt-lg-0">
+        <div class="p-4 bg-light rounded shadow-sm">
+            <h4 class="mb-3">Итого</h4>
+            <hr>
+            <a href="{% url 'checkout' %}" class="btn btn-primary w-100 {% if not bucket.bucket_element_set.all %}disabled{% endif %}">
+                Оформить заказ
+            </a>
+            <a href="{% url 'product_list' %}" class="btn btn-outline-secondary w-100 mt-2">
+                Продолжить покупки
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

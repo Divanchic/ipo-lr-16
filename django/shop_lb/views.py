@@ -1,10 +1,18 @@
 import openpyxl
+from django.contrib.auth import authenticate, login, logout
+from django.middleware.csrf import get_token
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status, viewsets
 from io import BytesIO
 from django.core.mail import EmailMessage
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from .models import *
+from django.http import HttpResponse
+from .serializers import ProductSerializer
 
 def index(request):
     popular_products = Product.objects.all().order_by('-id')[:6]
@@ -41,7 +49,12 @@ def product_list(request):
             Q(name__icontains=search_query) | Q(description__icontains=search_query)
         )
 
-    return render(request, 'catalog.html', {'products': products})
+    categories = Category.objects.all()
+    context = {
+        'products': products,
+        'categories': categories,
+    }
+    return render(request, 'catalog.html', context)
 
 def product_detail(request, pk):
     product = get_object_or_404(Product, pk=pk)
@@ -65,7 +78,8 @@ def cart_add(request, product_id):
             item.save()
         else:
             pass
-
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.method == 'POST':
+        return HttpResponse(status=200)
     return redirect('cart_view')
 
 
@@ -87,7 +101,7 @@ def cart_remove(request, item_id):
 
 
 def cart_view(request):
-    bucket, created = Bucket.objects.get_or_create(user=request.user)
+    bucket, created = Bucket.objects.prefetch_related('bucket_element_set__product').get_or_create(user=request.user)
     return render(request, 'cart.html', {'bucket': bucket})
 
 @login_required
@@ -146,6 +160,11 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAdminRole()]
+
 class BucketViewSet(viewsets.ModelViewSet):
     queryset = Bucket.objects.all()
     serializer_class = BucketSerializer
@@ -153,3 +172,101 @@ class BucketViewSet(viewsets.ModelViewSet):
 class Bucket_ElementViewSet(viewsets.ModelViewSet):
     queryset = Bucket_Element.objects.all()
     serializer_class = Bucket_ElementSerializer
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_register(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    full_name = request.data.get('full_name', '')
+
+    if not username or not password:
+        return Response({'error': 'Логин и пароль обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if User.objects.filter(username=username).exists():
+        return Response({'error': 'Пользователь уже существует'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = User.objects.create_user(username=username, password=password)
+    
+    profile, created = Profile.objects.get_or_create(user=user)
+    profile.full_name = full_name
+    profile.save()
+
+    login(request, user)
+    return Response({'success': 'Пользователь и профиль успешно созданы'}, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_login(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    user = authenticate(username=username, password=password)
+    if user is not None:
+        login(request, user)
+        response = Response({'success': 'Вход выполнен успешно'})
+        response.set_cookie('cookietoken', request.session.session_key, httponly=True)
+        return response
+    
+    return Response({'error': 'Неверный логин или пароль'}, status=status.HTTP_400_BAD_REQUEST)
+
+def api_logout(request):
+    logout(request)
+    response = redirect('home')
+    response.delete_cookie('cookietoken')
+    return response
+        
+
+def login_view(request):
+    return render(request, 'login.html')
+
+def register_view(request):
+    return render(request, 'register.html')
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def api_me(request):
+    profile, created = Profile.objects.get_or_create(user=request.user)
+    
+    if request.method == 'GET':
+        return Response({
+            'username': request.user.username,
+            'full_name': profile.full_name,
+            'role': profile.role
+        })
+        
+    elif request.method == 'PATCH':
+        full_name = request.data.get('full_name')
+        if full_name is not None:
+            profile.full_name = full_name
+            profile.save()
+        return Response({
+            'username': request.user.username,
+            'full_name': profile.full_name,
+            'role': profile.role
+        })
+
+def profile_view(request):
+    return render(request, 'profile.html')
+
+@login_required
+def settings_view(request):
+    return render(request, 'settings.html')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_save_settings(request):
+    user = request.user
+    email = request.data.get('email')
+    password = request.data.get('password')
+    
+    if email:
+        user.email = email
+    if password and password.strip() != '':
+        user.set_password(password)
+        user.save()
+        login(request, user)  # Перезаходим, чтобы не разлогинивало после смены пароля
+    else:
+        user.save()
+        
+    return Response({'success': 'Настройки успешно применены'})

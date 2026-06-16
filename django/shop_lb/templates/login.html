@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Хенд-мейд | Вход{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5 col-sm-8 col-12">
+        <div class="card shadow-sm p-4 bg-white rounded">
+            <h2 class="mb-4 text-center">Вход в аккаунт</h2>
+            <form id="login-form">
+                <div class="mb-3">
+                    <label class="form-label">Имя пользователя (Логин)</label>
+                    <input type="text" id="username" class="form-control" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Пароль</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2">Войти</button>
+            </form>
+            <div id="error-message" class="text-danger small text-center mt-3" style="display: none;"></div>
+            <p class="text-center mt-3 mb-0 small">Ещё нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('login-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const userVal = document.getElementById('username').value;
+        const passVal = document.getElementById('password').value;
+        const errorDiv = document.getElementById('error-message');
+
+        fetch('/api/auth/login/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')
+            },
+            body: JSON.stringify({ username: userVal, password: passVal })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/catalog/';
+            } else {
+                errorDiv.textContent = data.error || 'Ошибка входа';
+                errorDiv.style.display = 'block';
+            }
+        })
+        .catch(() => {
+            errorDiv.textContent = 'Ошибка сервера';
+            errorDiv.style.display = 'block';
+        });
+    });
+</script>
+{% endblock %}

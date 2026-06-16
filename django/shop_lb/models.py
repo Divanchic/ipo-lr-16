@@ -2,6 +2,9 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator, ValidationError
 from django.db.models import Model
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from rest_framework import permissions
 
 class Category(Model):
     name = models.CharField(max_length=100, verbose_name="Название")
@@ -69,3 +72,34 @@ class Bucket_Element(Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+class Profile(Model):
+    ROLE_CHOICES = [
+        ('CUSTOMER', 'Покупатель'),
+        ('MANAGER', 'Менеджер'),
+        ('ADMIN', 'Администратор'),
+    ]
+    favorite_category = models.CharField(max_length=50, blank=True, null=True, verbose_name="Любимая категория")
+    birth_date = models.DateField(blank=True, null=True, verbose_name="Дата рождения")
+    user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
+    full_name = models.CharField(max_length=100, verbose_name="Полное имя")
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='CUSTOMER', verbose_name="Роль")
+    def __str__(self):
+        return f"Профиль: {self.user.username} ({self.get_role_display()})"
+
+class IsAdminRole(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        return hasattr(request.user, 'profile') and request.user.profile.role == 'ADMIN'
+    
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    if hasattr(instance, 'profile'):
+        instance.profile.save()

@@ -1,29 +1,49 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ product.name }}</title>
-</head>
-<body>
-    <a href="{% url 'product_list' %}">← Назад в каталог</a>
-    <hr>
-    <h1>{{ product.name }}</h1>
-    <img src="{{ product.image.url }}" alt="{{ product.name }}" style="max-width: 400px;">
-    <p><b>Описание:</b> {{ product.description }}</p>
-    <p><b>Производитель:</b> {{ product.manufacturer.name }} ({{ product.manufacturer.country }})</p>
-    <p><b>Категория:</b> {{ product.category.name }}</p>
-    <h2>Цена: {{ product.price }} руб.</h2>
+{% extends 'base.html' %}
 
-    {% if user.is_authenticated %}
-        {% if product.stock_quantity > 0 %}
-            <form action="{% url 'cart_add' product.id %}" method="post">
-                {% csrf_token %}
-                <button type="submit">Добавить в корзину</button>
-            </form>
-        {% else %}
-            <p style="color: red;">Нет в наличии</p>
-        {% endif %}
-    {% else %}
-        <p><a href="/admin/login/">Войдите</a>, чтобы купить товар.</p>
-    {% endif %}
-</body>
-</html>
+{% block title %}Хенд-мейд | {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">← Назад в каталог</a>
+</div>
+
+<div class="card shadow-sm p-4 bg-white rounded">
+    <div class="row g-4">
+        <div class="col-md-5 col-12 text-center">
+            {% if product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded shadow-sm" style="max-height: 400px; object-fit: cover; width: 100%;">
+            {% else %}
+                <img src="/static/images/no-image.png" alt="Нет изображения" class="img-fluid rounded shadow-sm" style="max-height: 400px; object-fit: cover; width: 100%;">
+            {% endif %}
+        </div>
+        
+        <div class="col-md-7 col-12 d-flex flex-column">
+            <h1 class="mb-3">{{ product.name }}</h1>
+            <h2 class="text-primary mb-4">{{ product.price }} руб.</h2>
+            
+            <div class="mb-4 bg-light p-3 rounded">
+                <p class="mb-2"><b>Описание:</b> {{ product.description }}</p>
+                <p class="mb-2"><b>Производитель:</b> {{ product.manufacturer.name }} ({{ product.manufacturer.country }})</p>
+                <p class="mb-0"><b>Категория:</b> {{ product.category.name }}</p>
+            </div>
+
+            <div class="mt-auto pt-3">
+                {% if user.is_authenticated %}
+                    {% if product.stock_quantity > 0 %}
+                        <form action="{% url 'cart_add' product.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-dark btn-lg w-100 w-md-auto px-5">Добавить в корзину</button>
+                        </form>
+                    {% else %}
+                        <p class="text-danger fw-bold fs-5">Нет в наличии</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">
+                        <a href="{% url 'login' %}" class="btn btn-outline-dark">Войдите</a>
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
