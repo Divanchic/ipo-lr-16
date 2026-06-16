@@ -28,9 +28,8 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-fallback-key-for-loca
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
-if not DEBUG:
-    ALLOWED_HOSTS.append('.up.railway.app')
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'ipo-lr-16-production.up.railway.app']
+
 
 
 # Application definition
